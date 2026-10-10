@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Brick & Bun Burger Co.</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cabin+Sketch:wght@400;700&family=Space+Mono:wght@400;700&display=swap');
+
+        :root {
+            --bg-color: #1a1a1a;
+            --text-color: #f4f4f4;
+            --accent-color: #d9534f;
+            --cart-bg: #2a2a2a;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Space Mono', monospace;
+            margin: 0;
+            padding: 20px;
+            padding-bottom: 150px; /* Spazio per il carrello fisso */
+            line-height: 1.6;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            border-bottom: 2px dashed #444;
+            padding-bottom: 20px;
+        }
+
+        h1, h2 {
+            font-family: 'Cabin Sketch', cursive;
+            color: var(--accent-color);
+        }
+
+        h1 { font-size: 2.5em; margin-bottom: 10px; }
+        .manifesto { font-size: 0.9em; font-style: italic; color: #888; }
+
+        .menu-item {
+            border-left: 3px solid #444;
+            padding: 15px;
+            margin-bottom: 20px;
+            cursor: pointer;
+            transition: background 0.2s, border-color 0.2s;
+            user-select: none;
+        }
+
+        .menu-item:active { background: #333; }
+        
+        .item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+        }
+
+        .item-name {
+            font-family: 'Cabin Sketch', cursive;
+            font-size: 1.5em;
+            margin: 0;
+        }
+
+        .item-price { font-weight: bold; color: var(--accent-color); }
+        .item-desc { font-size: 0.85em; color: #aaa; margin-top: 5px; }
+        .fine-print { font-size: 0.75em; color: var(--accent-color); font-style: italic; }
+
+        /* Stili per l'iPad (La tua postazione comande) */
+        #ipad-cart {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: var(--cart-bg);
+            border-top: 3px solid var(--accent-color);
+            padding: 15px 20px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 1000;
+        }
+
+        .cart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+        }
+
+        #order-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            max-height: 150px;
+            overflow-y: auto;
+            font-size: 0.9em;
+        }
+
+        #order-list li {
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px solid #444;
+            padding: 5px 0;
+        }
+
+        .btn-clear {
+            background: transparent;
+            color: #888;
+            border: 1px solid #888;
+            padding: 5px 10px;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        
+        .btn-clear:hover { background: #d9534f; color: white; border-color: #d9534f; }
+        
+        .hint { text-align: center; font-size: 0.8em; color: #666; margin-top: 20px;}
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>The Brick & Bun Burger Co.</h1>
+        <p class="manifesto">"Non facciamo fast food. Facciamo gastronomia termodinamica concettuale tra due lievitati artigianali."</p>
+    </header>
+
+    <div id="menu-container"></div>
+    <p class="hint">Tap su un prodotto per aggiungerlo alla comanda (modalità cameriere)</p>
+
+    <!-- La tua Dashboard per l'iPad in basso -->
+    <div id="ipad-cart">
+        <div class="cart-header">
+            <span>📝 Taccuino Comande</span>
+            <span>Totale: <span id="cart-total">0.0</span></span>
+        </div>
+        <ul id="order-list"></ul>
+        <button class="btn-clear" onclick="clearCart()">Reset Tavolo</button>
+    </div>
+
+    <script>
+        // Dati del menu (Facili da modificare)
+        const menuData = [
+            { id: 1, name: "The Heritage Smash", price: 14.5, desc: "Manzo grass-fed massaggiato a mano, cheddar invecchiato in grotta, cipolle di Tropea caramellate lentamente, maionese al tartufo." },
+            { id: 2, name: "The Deconstructed Artisan Experience", price: 18.5, desc: "Gli stessi ingredienti dell'Heritage. Servito scomposto su una lastra di sale rosa per permettere al commensale di dialogare intimamente con gli elementi." },
+            { id: 3, name: "The Minimalist (Bespoke Edition)", price: 16.0, desc: "Il nostro Heritage Smash.", finePrint: "*La richiesta di rimozione di qualsiasi ingrediente (es. 'senza cipolla') comporta una fee di +2.5 per l'interruzione del flusso creativo dell'Executive Chef." },
+            { id: 4, name: "The 'I'm Actually Vegan'", price: 13.5, desc: "Patty di ceci e quinoa a chilometro zero, avocado mash, pomodori secchi e rucola." },
+            { id: 5, name: "Rustic Hand-Cut Fries", price: 5.5, desc: "Patatine tagliate a mano con la buccia. (Non teniamo ketchup commerciale)." },
+            { id: 6, name: "IPA 'Luppolo Arrabbiato'", price: 7.0, desc: "" }
+        ];
+
+        let cart = [];
+
+        // Funzione per generare il menu in HTML
+        function renderMenu() {
+            const container = document.getElementById('menu-container');
+            menuData.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'menu-item';
+                div.onclick = () => addToCart(item); // Il tocco magico per l'iPad
+                
+                div.innerHTML = `
+                    <div class="item-header">
+                        <h3 class="item-name">${item.name}</h3>
+                        <span class="item-price">${item.price.toFixed(1)}</span>
+                    </div>
+                    ${item.desc ? `<p class="item-desc">${item.desc}</p>` : ''}
+                    ${item.finePrint ? `<p class="fine-print">${item.finePrint}</p>` : ''}
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        // Logica Comande
+        function addToCart(item) {
+            const existingItem = cart.find(i => i.id === item.id);
+            if (existingItem) {
+                existingItem.qty++;
+            } else {
+                cart.push({ ...item, qty: 1 });
+            }
+            updateCartUI();
+        }
+
+        function clearCart() {
+            cart = [];
+            updateCartUI();
+        }
+
+        function updateCartUI() {
+            const list = document.getElementById('order-list');
+            const totalEl = document.getElementById('cart-total');
+            
+            list.innerHTML = '';
+            let total = 0;
+
+            cart.forEach(item => {
+                total += item.price * item.qty;
+                const li = document.createElement('li');
+                li.innerHTML = `<span>${item.qty}x ${item.name}</span> <span>${(item.price * item.qty).toFixed(1)}</span>`;
+                list.appendChild(li);
+            });
+
+            totalEl.innerText = total.toFixed(1);
+        }
+
+        // Inizializza
+        renderMenu();
+    </script>
+</body>
+</html>
